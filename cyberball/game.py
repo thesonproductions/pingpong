@@ -52,6 +52,7 @@ class GameState:
 
         self.particles = []
         self.powerups = []
+        self.powerup_spawn_cooldown = 0
         self.active_powerups = []
         self.gravity_wells = []
         self.lasers = []
@@ -89,6 +90,7 @@ class GameState:
         self.ball = self._new_ball()
         self.particles.clear()
         self.powerups.clear()
+        self.powerup_spawn_cooldown = 110 if self.campaign_level == 5 else 65
         self.multi_balls.clear()
         self.gravity_wells.clear()
         self.lasers.clear()
@@ -183,16 +185,24 @@ def _handle_paddle_hit(state, ball_obj, paddle, color):
 
 
 def _spawn_powerup(state):
+    """Spawn arcade items at a readable pace: never flood the boss arena."""
+    if state.powerup_spawn_cooldown > 0:
+        state.powerup_spawn_cooldown -= 1
+        return
+    max_items = 2 if state.campaign_level == 5 else 3
+    if len(state.powerups) >= max_items:
+        return
     chance = POWERUP_SPAWN_CHANCE
     if state.campaign_level in (4, 5):
-        chance *= 5  # arcade power-up storm
+        chance *= 2  # challenge remains lively, without the previous 5x storm
     if state.boss_manager.active:
         chance *= BOSS_POWERUP_SPAWN_MULTIPLIER
     if random.random() < chance:
         x = random.randint(SCREEN_WIDTH // 4, 3 * SCREEN_WIDTH // 4)
-        y = random.randint(POWERUP_SIZE, SCREEN_HEIGHT - POWERUP_SIZE)
+        y = random.randint(POWERUP_SIZE + 80, SCREEN_HEIGHT - POWERUP_SIZE - 80)
         t = random.choice(POWERUP_TYPES)
         state.powerups.append(PowerUp(x, y, t))
+        state.powerup_spawn_cooldown = 155 if state.campaign_level in (4, 5) else 120
 
 
 def _apply_powerup(state, p_type):
@@ -671,8 +681,10 @@ class Game:
         s.boss_projectiles = alive
 
         _spawn_powerup(s)
-        for p in s.powerups:
+        for p in s.powerups[:]:
             p.update()
+            if p.expired:
+                s.powerups.remove(p)
         _update_active_powerups(s)
         _update_combo(s)
 

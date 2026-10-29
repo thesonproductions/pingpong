@@ -26,7 +26,7 @@ Alternative: double-click `run_labtour.command`.
 | 1 Rookie Bot | Rule-based tracking (easy) | 3 | 65 s |
 | 2 Smart Tracker | Rule-based tracking (medium) | 3 | 70 s |
 | 3 Predictor Pro | Rule-based trajectory prediction (hard) | 3 | 75 s |
-| 4 Chaos Arena | Extreme AI, 5x power-up spawn probability | 3 | 80 s |
+| 4 Chaos Arena | Extreme AI, controlled power-up spawns | 3 | 80 s |
 | 5 Boss Gauntlet | Start with Titan boss, chaos power-ups | 3 | 90 s |
 
 Winning a campaign match unlocks the **N** shortcut to the next level,
@@ -36,7 +36,8 @@ but all five are directly available from selection (better for Lab Tour).
 
 If time expires, higher score wins; equal score shows a draw. Boss stage 5
 uses original boss physics and rewards; boss defeat can end the match.
-Pauses don't count toward campaign time. Classic arcade is unchanged.
+Pauses don't count toward campaign time. Classic arcade gameplay is preserved;
+a safety cap on simultaneously visible power-ups now also applies to Classic.
 
 ## Visuals / audio
 
@@ -45,6 +46,10 @@ Pauses don't count toward campaign time. Classic arcade is unchanged.
 - HUS event branding; clearer score labels AI / HUMAN.
 - Power-up HUD explicitly shows `SIZE 4.2s` and a progress meter rather
   than two unexplained orange blocks.
+- Boss display safety fix: reduced red warning border (24 px instead of
+  80 px) and limited collectibles to 2 in Boss Gauntlet / 3 elsewhere.
+  Uncollected items expire after 360 frames (6 seconds at 60 FPS), and
+  a spawn cooldown stops bursts of items appearing simultaneously.
 - **TAB** overlays how the rule-based AI calculates/predicts ball position.
 
 ## Controls

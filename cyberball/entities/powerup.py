@@ -37,9 +37,16 @@ class PowerUp:
         self.type = type_name
         self.rect = pygame.Rect(x - POWERUP_SIZE // 2, y - POWERUP_SIZE // 2, POWERUP_SIZE, POWERUP_SIZE)
         self.pulse = 0.0
+        self.age_frames = 0
+        self.lifetime_frames = 360  # six seconds at 60 fps
 
     def update(self):
         self.pulse += 0.1
+        self.age_frames += 1
+
+    @property
+    def expired(self):
+        return self.age_frames >= self.lifetime_frames
 
     def draw(self, surface):
         pulse_size = int(POWERUP_SIZE + 5 * math.sin(self.pulse))

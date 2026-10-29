@@ -131,8 +131,10 @@ class ScreenEffect:
             color, intensity = self.vignette_params()
             w, h = surface.get_size()
             overlay = pygame.Surface((w, h), pygame.SRCALPHA)
-            alpha = int(180 * intensity)
-            border = 80
+            # Boss warning should accent the playfield, never cover its edges.
+            # Earlier the 80px red curtain obscured gameplay on small screens.
+            alpha = max(0, min(32, int(90 * intensity)))
+            border = 24
             pygame.draw.rect(overlay, (*color, alpha), (0, 0, w, border))
             pygame.draw.rect(overlay, (*color, alpha), (0, h - border, w, border))
             pygame.draw.rect(overlay, (*color, alpha), (0, 0, border, h))
