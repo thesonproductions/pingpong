@@ -24,6 +24,7 @@ from .ui.hud import HUD, draw_boss_hp_bar
 from .ui.gameover import MatchStats, draw_game_over
 from .ui.settings import SettingsScreen
 from .ui import arena
+from .ui import boss_visuals
 from .ui import level_select
 from .campaign import challenge, CHALLENGES
 
@@ -70,7 +71,9 @@ class GameState:
         self.score_multiplier = 1.0
 
         # v4: boss + UI upgrades
-        self.boss_manager = BossManager(boss_x=0)  # AI is on the left (x=0)
+        # Boss collider is moved into the visible arena to fit the character
+        # sprite. It replaces the left paddle only while a boss is active.
+        self.boss_manager = BossManager(boss_x=170)
         self.boss_projectiles = []
         self.screen_effect = ScreenEffect()
         self.match_stats = MatchStats()
@@ -110,7 +113,7 @@ class GameState:
         self.right_score = 0
         self.combo_counter = 0
         self.score_multiplier = 1.0
-        self.boss_manager = BossManager(boss_x=0)
+        self.boss_manager = BossManager(boss_x=170)
         self.boss_projectiles.clear()
         self.screen_effect = ScreenEffect()
         self.match_stats = MatchStats()
@@ -469,19 +472,8 @@ def _draw_playfield(surface, state, shake):
 def _draw_boss(surface, state, shake):
     if not state.boss_manager.active:
         return
-    sx, sy = shake
-    boss = state.boss_manager.current_boss
-    if isinstance(boss, Split):
-        for seg in boss.segments:
-            if seg.hp <= 0:
-                continue
-            r = seg.rect.move(sx, sy)
-            draw_glow_rect(surface, ALERT_RED, r, 4)
-            pygame.draw.rect(surface, ALERT_RED, r)
-    else:
-        r = boss.rect.move(sx, sy)
-        draw_glow_rect(surface, ALERT_RED, r, 4)
-        pygame.draw.rect(surface, ALERT_RED, r)
+    boss_visuals.draw_boss(surface, state.boss_manager.current_boss,
+                           shake, pygame.time.get_ticks())
 
 
 def _draw_boss_projectiles(surface, state, shake):

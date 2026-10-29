@@ -50,6 +50,12 @@ a safety cap on simultaneously visible power-ups now also applies to Classic.
   80 px) and limited collectibles to 2 in Boss Gauntlet / 3 elsewhere.
   Uncollected items expire after 360 frames (6 seconds at 60 FPS), and
   a spawn cooldown stops bursts of items appearing simultaneously.
+- **Visible robot bosses:** Titan has an armoured mech sprite, Barrage a
+  twin-cannon flying drone, and Split two independent sentries. They are
+  drawn with original Pygame vector sprites in cyberball/ui/boss_visuals.py.
+  The guard colliders are now inside the arena at x=170..190, rather than
+  clipped at the left edge x=0. The bright front guard aligns with the
+  damageable hitbox; paddle-based classic AI remains at x=0.
 - **TAB** overlays how the rule-based AI calculates/predicts ball position.
 
 ## Controls
