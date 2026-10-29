@@ -23,6 +23,7 @@ from .ui.menu import MenuRenderer
 from .ui.hud import HUD, draw_boss_hp_bar
 from .ui.gameover import MatchStats, draw_game_over
 from .ui.settings import SettingsScreen
+from .ui import arena
 
 
 class GameState:
@@ -36,6 +37,7 @@ class GameState:
         self.difficulty = "medium"
         self.mode = "1p"  # 1p or 2p
         self.colorblind = False
+        self.ai_debug = False  # TAB toggles a transparent AI decision panel
 
         self.left_paddle = Paddle(0, "left")
         self.right_paddle = Paddle(SCREEN_WIDTH - PADDLE_WIDTH, "right")
@@ -128,11 +130,11 @@ class GameState:
 
 def _fonts():
     return {
-        'title': pygame.font.Font(None, 80),
-        'menu': pygame.font.Font(None, 36),
-        'ui': pygame.font.Font(None, 32),
-        'score': pygame.font.Font(None, 64),
-        'small': pygame.font.Font(None, 24),
+        'title': arena.lab_font(63, wide=True),
+        'menu': arena.lab_font(25),
+        'ui': arena.lab_font(28),
+        'score': arena.lab_font(60, wide=True),
+        'small': arena.lab_font(19),
     }
 
 
@@ -358,7 +360,8 @@ def _screen_shake_offset(state):
 
 def _draw_playfield(surface, state, shake):
     sx, sy = shake
-    surface.fill(BLACK)
+    arena.draw(surface, state.difficulty, pygame.time.get_ticks(),
+               boss=state.boss_manager.active)
 
     # Grid background
     t = pygame.time.get_ticks() * 0.001
@@ -454,13 +457,20 @@ def _draw_boss_projectiles(surface, state, shake):
 class Game:
     def __init__(self, headless=False):
         pygame.init()
+        # Multiple Game instances appear in tests after pygame.quit().
+        # Cached SDL font/display resources must not survive that reset.
+        arena.lab_font.cache_clear()
+        arena._canvas.cache_clear()
+        arena._base.cache_clear()
+        from .ui import typography
+        typography._cached.clear()
         flags = pygame.HIDDEN if headless else 0
         try:
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), flags)
         except pygame.error:
             # Some builds don't support HIDDEN; fall back
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption('CYBERBALL 2084 — NEON WARS')
+        pygame.display.set_caption('HUS LAB TOUR 2026 | CYBERBALL 2084 - HUMAN VS AI')
         self.clock = pygame.time.Clock()
         self.fonts = _fonts()
 
@@ -509,7 +519,9 @@ class Game:
             if s.settings_screen and s.settings_screen.handle_key(k):
                 s.state = "menu"
         elif s.state == "playing":
-            if k == pygame.K_p:
+            if k == pygame.K_TAB:
+                s.ai_debug = not s.ai_debug
+            elif k == pygame.K_p:
                 s.state = "paused"
             elif k == pygame.K_ESCAPE:
                 s.state = "menu"
@@ -690,6 +702,8 @@ class Game:
             if s.boss_manager.active:
                 draw_boss_hp_bar(self.screen, s.boss_manager.current_boss, self.fonts['ui'])
             s.screen_effect.render_overlays(self.screen)
+            if s.ai_debug and s.state in ("playing", "paused"):
+                arena.overlay_ai_decision(self.screen, s)
             if s.state == "paused":
                 self.menu.draw_pause(self.screen)
             elif s.state == "gameover":

@@ -1,5 +1,6 @@
 """Audio system — generates simple tones via pygame.sndarray."""
 import math
+from pathlib import Path
 import pygame
 
 
@@ -40,9 +41,25 @@ class AudioSystem:
             'powerup':    (880, 200),
             'score':      (660, 300),
         }
+        assets = Path(__file__).resolve().parent.parent / "assets" / "sfx"
+        files = {
+            "paddle_hit": "hit.ogg", "wall_hit": "click.ogg",
+            "powerup": "power.ogg", "score": "point.ogg",
+        }
         for name, (freq, dur) in specs.items():
-            snd = _make_tone(freq, dur, self.volume)
+            # CC0 UI sound effects; retain the synthesized fallback for systems
+            # where OGG loading fails or audio assets are unavailable.
+            snd = None
+            file = assets / files[name]
+            if file.exists():
+                try:
+                    snd = pygame.mixer.Sound(str(file))
+                except (pygame.error, OSError):
+                    pass
+            if snd is None:
+                snd = _make_tone(freq, dur, self.volume)
             if snd:
+                snd.set_volume(self.volume)
                 self.sounds[name] = snd
 
     def play(self, name):

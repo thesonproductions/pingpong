@@ -10,6 +10,7 @@ from ..config import (
 )
 from ..entities.particle import Particle
 from .backgrounds import MenuDemo
+from . import arena
 
 
 class MenuRenderer:
@@ -29,7 +30,7 @@ class MenuRenderer:
             self.particles.append(Particle(x, y, color))
 
     def draw_menu(self, surface, state):
-        surface.fill(BLACK)
+        arena.draw(surface, state.difficulty, pygame.time.get_ticks())
         self.demo.update()
         self.demo.draw(surface)
         self._spawn_bg_particle()
@@ -45,6 +46,9 @@ class MenuRenderer:
             s.fill((*DARK_CYAN, max(0, alpha)))
             surface.blit(s, (i, 0))
 
+        # Lab branding and classic Cyberball game title.
+        eyebrow = self.small_font.render("HUS  |  AI LAB TOUR 2026", True, NEON_GREEN)
+        surface.blit(eyebrow, eyebrow.get_rect(center=(SCREEN_WIDTH // 2, 67)))
         # Title
         title = self.title_font.render("CYBERBALL 2084", True, CYBER_BLUE)
         tx = SCREEN_WIDTH // 2 - title.get_width() // 2
@@ -55,8 +59,14 @@ class MenuRenderer:
             surface.blit(glow, (tx + off[0], ty + off[1]))
         surface.blit(title, (tx, ty))
 
-        subtitle = self.ui_font.render("NEON WARS — v4.0 (BOSS MODE)", True, NEON_PINK)
+        subtitle = self.ui_font.render("HUMAN VS AI  /  NEON ARENA", True, NEON_PINK)
         surface.blit(subtitle, (SCREEN_WIDTH // 2 - subtitle.get_width() // 2, ty + 80))
+
+        # Preview of the selected difficulty as a themed arena stage.
+        stage = arena.stage_label(state.difficulty)
+        st = self.small_font.render(stage + '  [1-4]', True,
+                                   arena.stage_color(state.difficulty))
+        surface.blit(st, st.get_rect(center=(SCREEN_WIDTH // 2, 251)))
 
         # Main menu
         items = [
@@ -82,13 +92,13 @@ class MenuRenderer:
         hs = state.stats.high_score(state.difficulty)
         foot1 = self.small_font.render(
             f"Games: {state.stats.data['games_played']}  |  High Score ({state.difficulty}): {hs}",
-            True, DIM_GRAY,
+            True, (144, 174, 203),
         )
         surface.blit(foot1, (SCREEN_WIDTH // 2 - foot1.get_width() // 2, SCREEN_HEIGHT - 60))
         foot2 = self.small_font.render(
             f"Total Hits: {state.stats.data['total_hits']}  |  Max Combo: {state.stats.data['max_combo']}  |  "
             f"Powerups: {state.stats.data['powerups_collected']}",
-            True, DIM_GRAY,
+            True, (144, 174, 203),
         )
         surface.blit(foot2, (SCREEN_WIDTH // 2 - foot2.get_width() // 2, SCREEN_HEIGHT - 35))
 

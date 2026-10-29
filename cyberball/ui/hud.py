@@ -7,6 +7,7 @@ from ..config import (
     NEON_GREEN, DIM_GRAY, POWERUP_DURATION, BRIGHT_WHITE, ALERT_RED,
 )
 from ..entities.powerup import COLORS as POWERUP_COLORS, LABELS as POWERUP_LABELS
+from . import arena
 
 
 def draw_boss_hp_bar(surface, boss, font):
@@ -101,8 +102,8 @@ class HUD:
         speed = abs(state.ball.speed_x) if state.ball else 0.0
         mode = "1P" if state.mode == "1p" else "2P"
         txt = self.small_font.render(
-            f"Difficulty: {state.difficulty.upper()}  |  Speed: {speed:.1f}  |  Mode: {mode}  |  "
-            f"P: Pause  |  ESC: Menu  |  R: Reset",
-            True, DIM_GRAY,
+            f"{arena.stage_label(state.difficulty)}   |   {mode}   |   "
+            f"TAB: AI VIEW   P: PAUSE   ESC: MENU",
+            True, (147, 185, 207),
         )
-        surface.blit(txt, (10, SCREEN_HEIGHT - 25))
+        surface.blit(txt, txt.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 24)))
