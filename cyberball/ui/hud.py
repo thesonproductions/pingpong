@@ -53,6 +53,10 @@ class HUD:
         left_color = self._flash_color(CYBER_BLUE, state.score_flash['left'])
         right_color = self._flash_color(NEON_PINK, state.score_flash['right'])
 
+        left_label = self.small_font.render("AI", True, CYBER_BLUE)
+        right_label = self.small_font.render("HUMAN", True, NEON_PINK)
+        surface.blit(left_label, left_label.get_rect(center=(SCREEN_WIDTH // 4, 16)))
+        surface.blit(right_label, right_label.get_rect(center=(3 * SCREEN_WIDTH // 4, 16)))
         left = self.score_font.render(str(state.left_score), True, left_color)
         right = self.score_font.render(str(state.right_score), True, right_color)
         surface.blit(left, (SCREEN_WIDTH // 4 - left.get_width() // 2 + sx, 30 + sy))
@@ -83,26 +87,35 @@ class HUD:
     def _draw_powerup_bars(self, surface, state):
         if not state.active_powerups:
             return
-        x = 20
-        y = 80
-        bar_w = 140
-        bar_h = 14
-        for p in state.active_powerups:
-            ratio = max(0.0, min(1.0, p['duration'] / POWERUP_DURATION))
-            color = POWERUP_COLORS.get(p['type'], POWERUP_GOLD)
-            label = POWERUP_LABELS.get(p['type'], p['type'][:3].upper())
-
-            pygame.draw.rect(surface, DIM_GRAY, (x, y, bar_w, bar_h), 1)
-            pygame.draw.rect(surface, color, (x + 1, y + 1, int((bar_w - 2) * ratio), bar_h - 2))
-            txt = self.small_font.render(label, True, color)
-            surface.blit(txt, (x + bar_w + 8, y - 2))
-            y += bar_h + 6
+        for idx, p in enumerate(state.active_powerups[:4]):
+            # Explicit label and remaining time: avoid two ambiguous orange
+            # blocks (progress bar + an acronym) at the top of the screen.
+            x, y, width, height = 22, 114 + idx * 43, 245, 36
+            ratio = max(0.0, min(1.0, p["duration"] / POWERUP_DURATION))
+            color = POWERUP_COLORS.get(p["type"], POWERUP_GOLD)
+            panel = pygame.Surface((width, height), pygame.SRCALPHA)
+            pygame.draw.rect(panel, (5, 18, 34, 234), (0, 0, width, height),
+                             border_radius=8)
+            pygame.draw.rect(panel, (*color, 205), (0, 0, width, height),
+                             1, border_radius=8)
+            label = p["type"].replace("_", " ").upper()
+            remaining = max(0.0, p["duration"] / 60.0)
+            glyph = self.small_font.render(f"{label}  {remaining:.1f}s", True, color)
+            panel.blit(glyph, (12, 4))
+            pygame.draw.rect(panel, (42, 54, 68), (12, height-8, width-24, 4),
+                             border_radius=2)
+            pygame.draw.rect(panel, color,
+                             (12, height-8, int((width-24)*ratio), 4),
+                             border_radius=2)
+            surface.blit(panel, (x, y))
 
     def _draw_footer(self, surface, state):
         speed = abs(state.ball.speed_x) if state.ball else 0.0
         mode = "1P" if state.mode == "1p" else "2P"
+        stage = (f"LEVEL {state.campaign_level}/5" if state.campaign_level
+                 else arena.stage_label(state.difficulty))
         txt = self.small_font.render(
-            f"{arena.stage_label(state.difficulty)}   |   {mode}   |   "
+            f"{stage}   |   {mode}   |   "
             f"TAB: AI VIEW   P: PAUSE   ESC: MENU",
             True, (147, 185, 207),
         )

@@ -24,6 +24,8 @@ from .ui.hud import HUD, draw_boss_hp_bar
 from .ui.gameover import MatchStats, draw_game_over
 from .ui.settings import SettingsScreen
 from .ui import arena
+from .ui import level_select
+from .campaign import challenge, CHALLENGES
 
 
 class GameState:
@@ -38,6 +40,10 @@ class GameState:
         self.mode = "1p"  # 1p or 2p
         self.colorblind = False
         self.ai_debug = False  # TAB toggles a transparent AI decision panel
+        self.campaign_level = None  # None = original Cyberball arcade mode
+        self.campaign_started_ms = 0
+        self.campaign_pause_ms = 0
+        self.campaign_pause_started = 0
 
         self.left_paddle = Paddle(0, "left")
         self.right_paddle = Paddle(SCREEN_WIDTH - PADDLE_WIDTH, "right")
@@ -92,6 +98,10 @@ class GameState:
         self.left_paddle.reset_position()
         self.right_paddle.reset_position()
         self._spawn_particles(self.ball.rect.centerx, self.ball.rect.centery, CYBER_BLUE, 20)
+        # Unlike arcade mode, the final challenge faces a boss from the first rally.
+        if self.campaign_level == 5 and not self.boss_manager.active:
+            self.boss_manager.on_player_score(5)
+            self.screen_effect.vignette(ALERT_RED, 0.20)
 
     def reset_match(self):
         self.left_score = 0
@@ -103,8 +113,19 @@ class GameState:
         self.screen_effect = ScreenEffect()
         self.match_stats = MatchStats()
         self.match_stats.start(pygame.time.get_ticks())
+        self.campaign_started_ms = pygame.time.get_ticks()
+        self.campaign_pause_ms = 0
+        self.campaign_pause_started = 0
         self.game_over_winner = None
         self.reset_round()
+
+    def campaign_time_left(self):
+        if self.campaign_level is None:
+            return None
+        now = (self.campaign_pause_started if self.campaign_pause_started
+               else pygame.time.get_ticks())
+        elapsed = (now - self.campaign_started_ms - self.campaign_pause_ms) / 1000
+        return max(0, challenge(self.campaign_level).seconds - elapsed)
 
     # Particle helpers
     def _spawn_particles(self, x, y, color, count=10):
@@ -163,6 +184,8 @@ def _handle_paddle_hit(state, ball_obj, paddle, color):
 
 def _spawn_powerup(state):
     chance = POWERUP_SPAWN_CHANCE
+    if state.campaign_level in (4, 5):
+        chance *= 5  # arcade power-up storm
     if state.boss_manager.active:
         chance *= BOSS_POWERUP_SPAWN_MULTIPLIER
     if random.random() < chance:
@@ -321,6 +344,9 @@ def _handle_scoring(state):
 
 
 def _check_boss_trigger(state):
+    # Original 5-point boss rotation stays available in Arcade Mode.
+    if state.campaign_level is not None:
+        return
     boss = state.boss_manager.on_player_score(state.right_score)
     if boss is not None:
         state.screen_effect.banner("BOSS INCOMING", BOSS_BANNER_MS)
@@ -331,9 +357,11 @@ def _check_boss_trigger(state):
 
 
 def _check_match_end(state):
-    if state.right_score >= MATCH_POINT_LIMIT:
+    point_limit = (challenge(state.campaign_level).points
+                   if state.campaign_level else MATCH_POINT_LIMIT)
+    if state.right_score >= point_limit:
         _finish_match(state, winner="PLAYER")
-    elif state.left_score >= MATCH_POINT_LIMIT:
+    elif state.left_score >= point_limit:
         _finish_match(state, winner="AI")
 
 
@@ -480,10 +508,28 @@ class Game:
         self.menu = MenuRenderer(self.fonts)
         self.hud = HUD(self.fonts)
 
+    def _start_challenge(self, number):
+        cfg = challenge(number)
+        s = self.state
+        s.campaign_level = number
+        s.mode = "1p"
+        s.difficulty = cfg.difficulty
+        s.reset_match()
+        s.state = "playing"
+
+    def _open_campaign_select(self):
+        self.state.state = "level_select"
+
     # ----- Input -----
     def _handle_event(self, event):
         if event.type == pygame.QUIT:
             self._shutdown()
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.state.state == "level_select":
+                selected = level_select.select_at(event.pos)
+                if selected is not None:
+                    self._start_challenge(selected)
+            return
         if event.type != pygame.KEYDOWN:
             return
 
@@ -492,8 +538,11 @@ class Game:
 
         if s.state == "menu":
             if k == pygame.K_SPACE:
+                s.campaign_level = None
                 s.reset_match()
                 s.state = "playing"
+            elif k == pygame.K_l:
+                self._open_campaign_select()
             elif k == pygame.K_1:
                 s.difficulty = "easy"
             elif k == pygame.K_2:
@@ -515,6 +564,11 @@ class Game:
                 s.state = "settings"
             elif k == pygame.K_ESCAPE:
                 self._shutdown()
+        elif s.state == "level_select":
+            if pygame.K_1 <= k <= pygame.K_5:
+                self._start_challenge(k - pygame.K_0)
+            elif k == pygame.K_ESCAPE:
+                s.state = "menu"
         elif s.state == "settings":
             if s.settings_screen and s.settings_screen.handle_key(k):
                 s.state = "menu"
@@ -522,9 +576,11 @@ class Game:
             if k == pygame.K_TAB:
                 s.ai_debug = not s.ai_debug
             elif k == pygame.K_p:
+                if s.campaign_level:
+                    s.campaign_pause_started = pygame.time.get_ticks()
                 s.state = "paused"
             elif k == pygame.K_ESCAPE:
-                s.state = "menu"
+                s.state = "level_select" if s.campaign_level else "menu"
             elif k == pygame.K_r:
                 s.reset_match()
             elif k == pygame.K_f:
@@ -538,13 +594,20 @@ class Game:
             if k == pygame.K_r:
                 s.reset_match()
                 s.state = "playing"
+            elif k == pygame.K_n and s.campaign_level and s.game_over_winner == "PLAYER":
+                self._start_challenge(1 if s.campaign_level == 5 else s.campaign_level + 1)
+            elif k == pygame.K_l and s.campaign_level:
+                self._open_campaign_select()
             elif k == pygame.K_ESCAPE:
-                s.state = "menu"
+                s.state = "level_select" if s.campaign_level else "menu"
         elif s.state == "paused":
             if k in (pygame.K_p, pygame.K_SPACE):
+                if s.campaign_pause_started:
+                    s.campaign_pause_ms += pygame.time.get_ticks() - s.campaign_pause_started
+                    s.campaign_pause_started = 0
                 s.state = "playing"
             elif k == pygame.K_ESCAPE:
-                s.state = "menu"
+                s.state = "level_select" if s.campaign_level else "menu"
             elif k == pygame.K_r:
                 s.reset_match()
                 s.state = "playing"
@@ -563,6 +626,11 @@ class Game:
     # ----- Update -----
     def _update_playing(self):
         s = self.state
+        if s.campaign_level and s.campaign_time_left() <= 0:
+            winner = ("PLAYER" if s.right_score > s.left_score else
+                      "AI" if s.left_score > s.right_score else "DRAW")
+            _finish_match(s, winner)
+            return
         keys = pygame.key.get_pressed()
 
         # Tick screen effects (approx dt from clock)
@@ -690,6 +758,8 @@ class Game:
         s = self.state
         if s.state == "menu":
             self.menu.draw_menu(self.screen, s)
+        elif s.state == "level_select":
+            level_select.draw(self.screen, self.fonts)
         elif s.state == "settings":
             if s.settings_screen:
                 s.settings_screen.draw(self.screen)
@@ -699,6 +769,14 @@ class Game:
             _draw_boss(self.screen, s, shake)
             _draw_boss_projectiles(self.screen, s, shake)
             self.hud.draw(self.screen, s, shake)
+            if s.campaign_level:
+                label = arena.lab_font(17).render(
+                    f"LEVEL {s.campaign_level}/5  {challenge(s.campaign_level).name}",
+                    True, arena.stage_color(s.difficulty))
+                self.screen.blit(label, (20, 37))
+                remaining = s.campaign_time_left()
+                timer = arena.lab_font(21).render(f"{int(remaining):02d}s", True, (244, 246, 255))
+                self.screen.blit(timer, (SCREEN_WIDTH - timer.get_width() - 25, 34))
             if s.boss_manager.active:
                 draw_boss_hp_bar(self.screen, s.boss_manager.current_boss, self.fonts['ui'])
             s.screen_effect.render_overlays(self.screen)
@@ -710,6 +788,12 @@ class Game:
                 draw_game_over(self.screen, s.game_over_winner,
                                s.right_score, s.left_score,
                                s.match_stats, now_ms=pygame.time.get_ticks())
+                if s.campaign_level:
+                    note = ("R: RETRY    N: NEXT LEVEL    L: CHOOSE LEVEL" if
+                            s.game_over_winner == "PLAYER" else
+                            "R: RETRY    L: CHOOSE LEVEL")
+                    glyph = arena.lab_font(18).render(note, True, (101, 237, 203))
+                    self.screen.blit(glyph, glyph.get_rect(center=(SCREEN_WIDTH//2, 720)))
         pygame.display.flip()
 
     # ----- Main loop -----

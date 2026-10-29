@@ -70,7 +70,8 @@ class MenuRenderer:
 
         # Main menu
         items = [
-            ("SPACE", "START GAME"),
+            ("SPACE", "ARCADE: CLASSIC MATCH"),
+            ("L", "LAB TOUR: FIVE LEVELS"),
             ("1 / 2 / 3 / 4", f"DIFFICULTY: {state.difficulty.upper()}"),
             ("M", f"MODE: {state.mode.upper()}  (1P vs AI / 2P local)"),
             ("V / B", f"VOLUME: {int(state.audio.volume * 100)}%"),
@@ -78,7 +79,7 @@ class MenuRenderer:
             ("O", "SETTINGS"),
             ("ESC", "EXIT"),
         ]
-        y = 300
+        y = 282
         for key, desc in items:
             key_surf = self.menu_font.render(key, True, NEON_GREEN)
             desc_surf = self.menu_font.render(desc, True, GLOW_WHITE)
@@ -86,7 +87,7 @@ class MenuRenderer:
             x = SCREEN_WIDTH // 2 - total_w // 2
             surface.blit(key_surf, (x, y))
             surface.blit(desc_surf, (x + key_surf.get_width() + 30, y))
-            y += 50
+            y += 47
 
         # Stats footer
         hs = state.stats.high_score(state.difficulty)
