@@ -770,10 +770,13 @@ class Game:
             _draw_boss_projectiles(self.screen, s, shake)
             self.hud.draw(self.screen, s, shake)
             if s.campaign_level:
+                accent = arena.stage_color(s.difficulty)
                 label = arena.lab_font(17).render(
-                    f"LEVEL {s.campaign_level}/5  {challenge(s.campaign_level).name}",
-                    True, arena.stage_color(s.difficulty))
-                self.screen.blit(label, (20, 37))
+                    f"LEVEL {s.campaign_level}/5", True, accent)
+                self.screen.blit(label, (22, 38))
+                stage_name = arena.lab_font(12).render(
+                    challenge(s.campaign_level).name, True, (201, 215, 229))
+                self.screen.blit(stage_name, (22, 71))
                 remaining = s.campaign_time_left()
                 timer = arena.lab_font(21).render(f"{int(remaining):02d}s", True, (244, 246, 255))
                 self.screen.blit(timer, (SCREEN_WIDTH - timer.get_width() - 25, 34))

@@ -38,7 +38,11 @@ def draw_boss_hp_bar(surface, boss, font):
 
 class HUD:
     def __init__(self, fonts):
-        self.score_font = fonts['score']
+        # Kenney Future's square digits looked like solid coloured bars on
+        # some display scales. Keep arcade fonts elsewhere, but make scores
+        # immediately readable at a distance during the Lab Tour.
+        self.score_font = pygame.font.Font(None, 79)
+        self.score_label_font = pygame.font.Font(None, 25)
         self.ui_font = fonts['ui']
         self.small_font = fonts['small']
 
@@ -50,22 +54,27 @@ class HUD:
         self._draw_footer(surface, state)
 
     def _draw_scores(self, surface, state, sx, sy):
-        left_color = self._flash_color(CYBER_BLUE, state.score_flash['left'])
-        right_color = self._flash_color(NEON_PINK, state.score_flash['right'])
+        # Compact contrast panels sit outside the boss HP bar (x=302..722).
+        # Fixed positions ensure scores are equally visible in Classic and
+        # campaign mode, independently of the chosen space background.
+        for x, label, value, color, flash in (
+            (172, "AI", state.left_score, CYBER_BLUE, state.score_flash["left"]),
+            (732, "HUMAN", state.right_score, NEON_PINK, state.score_flash["right"]),
+        ):
+            card = pygame.Rect(x, 6, 120, 91)
+            pygame.draw.rect(surface, (5, 16, 31), card, border_radius=13)
+            pygame.draw.rect(surface, color, card, width=2, border_radius=13)
+            label_surface = self.score_label_font.render(label, True, color)
+            surface.blit(label_surface, label_surface.get_rect(
+                center=(card.centerx, card.top + 17)))
+            number_surface = self.score_font.render(
+                str(value), True, self._flash_color(color, flash))
+            surface.blit(number_surface, number_surface.get_rect(
+                center=(card.centerx, card.top + 56)))
 
-        left_label = self.small_font.render("AI", True, CYBER_BLUE)
-        right_label = self.small_font.render("HUMAN", True, NEON_PINK)
-        surface.blit(left_label, left_label.get_rect(center=(SCREEN_WIDTH // 4, 16)))
-        surface.blit(right_label, right_label.get_rect(center=(3 * SCREEN_WIDTH // 4, 16)))
-        left = self.score_font.render(str(state.left_score), True, left_color)
-        right = self.score_font.render(str(state.right_score), True, right_color)
-        surface.blit(left, (SCREEN_WIDTH // 4 - left.get_width() // 2 + sx, 30 + sy))
-        surface.blit(right, (3 * SCREEN_WIDTH // 4 - right.get_width() // 2 + sx, 30 + sy))
-
-        if state.score_flash['left'] > 0:
-            state.score_flash['left'] -= 1
-        if state.score_flash['right'] > 0:
-            state.score_flash['right'] -= 1
+        for side in ("left", "right"):
+            if state.score_flash[side] > 0:
+                state.score_flash[side] -= 1
 
     @staticmethod
     def _flash_color(base, flash):
