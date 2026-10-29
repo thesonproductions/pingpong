@@ -53,9 +53,28 @@ a safety cap on simultaneously visible power-ups now also applies to Classic.
 - **Visible robot bosses:** Titan has an armoured mech sprite, Barrage a
   twin-cannon flying drone, and Split two independent sentries. They are
   drawn with original Pygame vector sprites in cyberball/ui/boss_visuals.py.
-  The guard colliders are now inside the arena at x=170..190, rather than
-  clipped at the left edge x=0. The bright front guard aligns with the
-  damageable hitbox; paddle-based classic AI remains at x=0.
+  Colliders remain in the visible arena at x=170..190, while sprite art is
+  now compact (Titan 115x190, Barrage 105x125, Split 103x72 each).
+  Titan's actual paddle/hitbox was reduced from 300 to 192 pixels high.
+  Classic non-boss AI keeps its original x=0 paddle.
+
+## Boss combat rules (updated)
+
+- **Defense:** A boss successfully blocking the Pong ball returns it toward
+  the human player. No HP is lost on that successful defensive hit.
+- **Goal past boss:** Each ball that crosses the left goal line while a
+  boss is active deals 1 HP of damage to that boss, in addition to scoring.
+- **Laser strike:** A player-fired laser (laser power-up, F) hitting the boss
+  deals 1 HP. Boss-fired or unrelated lasers do not reduce its HP.
+- **Stage 5:** Titan starts with 3 HP to match the 3-point Lab Tour game.
+  Three successful goals (or a combination of goals and laser hits) defeat
+  it; bonus score multipliers cannot skip HP. Losing a point does NOT reset
+  Titan's health. A boss kill ends the stage with player victory.
+- **Classic:** Boss HP remains as originally configured (e.g., Titan 5 HP)
+  and successful kills preserve the classic bonus-point reward. Classic
+  non-boss paddle behaviour is unchanged.
+- Labels in the arena explain these rules: blocks do not damage the boss,
+  goals and lasers do.
 - **TAB** overlays how the rule-based AI calculates/predicts ball position.
 
 ## Controls

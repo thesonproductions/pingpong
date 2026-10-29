@@ -59,7 +59,7 @@ class BossVisualRegressionTest(unittest.TestCase):
         self.assertEqual(self.app.state.left_score, 0)
         self.assertEqual(self.app.state.right_score, 0)
 
-    def test_boss_hit_reduces_hp_and_returns_ball(self):
+    def test_boss_defense_keeps_hp_and_returns_ball(self):
         from cyberball.game import _handle_ball_vs_boss
         state = self.app.state
         boss = state.boss_manager.current_boss
@@ -67,7 +67,7 @@ class BossVisualRegressionTest(unittest.TestCase):
         state.ball.rect.midleft = (boss.rect.right - 2, boss.rect.centery)
         state.ball.speed_x = -7.0
         self.assertTrue(_handle_ball_vs_boss(state, state.ball))
-        self.assertEqual(boss.hp, health_before - 1)
+        self.assertEqual(boss.hp, health_before)
         self.assertGreater(state.ball.speed_x, 0)
 
     def test_classic_item_spawn_also_has_reasonable_bound(self):

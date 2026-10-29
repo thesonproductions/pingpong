@@ -57,7 +57,7 @@ class BossSpriteVisualTests(unittest.TestCase):
                 self.app.state.ball.rect.midleft = (front_x, sample_y)
                 self.app.state.ball.speed_x = -7.0
                 self.assertTrue(_handle_ball_vs_boss(state, state.ball))
-                self.assertEqual(boss.hp, health_before - 1)
+                self.assertEqual(boss.hp, health_before)
                 self.assertGreater(state.ball.speed_x, 0)
 
     def test_split_segments_draw_separately_and_hide_dead_half(self):

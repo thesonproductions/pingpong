@@ -130,6 +130,14 @@ def sprite(kind):
     return canvas
 
 
+@lru_cache(maxsize=3)
+def display_sprite(kind):
+    # Compact sizes keep the robot readable without covering the arena.
+    sizes = {"titan": (115, 190), "barrage": (105, 125),
+             "split": (103, 72)}
+    return pygame.transform.smoothscale(sprite(kind), sizes[kind])
+
+
 def draw_boss(surface, boss, shake=(0, 0), time_ms=0):
     """Render boss and accurate guard at the front of its collidable hitbox."""
     sx, sy = shake
@@ -143,9 +151,10 @@ def draw_boss(surface, boss, shake=(0, 0), time_ms=0):
     else:
         centers = [(boss.rect, None)]
     for rect, _ in centers:
-        art = sprite(kind)
-        # Sprite front edge == collision right edge, not an invisible x=0 paddle.
-        x = rect.right - 180 + sx
+        art = display_sprite(kind)
+        # Keep the visible front of the compact robot next to its true
+        # collider; neither sprite nor hitbox extends across half the court.
+        x = rect.right - art.get_width() - 4 + sx
         y = rect.centery - art.get_height() // 2 + sy
         surface.blit(art, (x, y))
         guard = pygame.Rect(rect.right - 7 + sx, rect.top + sy, 10, rect.height)
@@ -164,4 +173,5 @@ def draw_boss(surface, boss, shake=(0, 0), time_ms=0):
     font = pygame.font.Font(None, 23)
     label = font.render(f"{kind.upper()}  HP {boss.hp}/{boss.hp_max}",
                         True, (255, 223, 231))
-    surface.blit(label, (max(16, boss.rect.right - 148 + sx), top + sy))
+    surface.blit(label, (max(16, boss.rect.right - display_sprite(kind).get_width() - 3 + sx),
+                         top + sy))

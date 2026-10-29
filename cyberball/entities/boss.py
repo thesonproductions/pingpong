@@ -66,7 +66,8 @@ class Titan(Boss):
 
     def __init__(self, x):
         super().__init__(x)
-        height = int(PADDLE_HEIGHT * 2.5)
+        # Smaller hitbox matches the visible Lab Tour mech.
+        height = int(PADDLE_HEIGHT * 1.6)
         self.rect = pygame.Rect(
             x, SCREEN_HEIGHT // 2 - height // 2, PADDLE_WIDTH, height,
         )

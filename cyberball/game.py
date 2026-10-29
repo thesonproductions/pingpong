@@ -105,8 +105,13 @@ class GameState:
         self._spawn_particles(self.ball.rect.centerx, self.ball.rect.centery, CYBER_BLUE, 20)
         # Unlike arcade mode, the final challenge faces a boss from the first rally.
         if self.campaign_level == 5 and not self.boss_manager.active:
-            self.boss_manager.on_player_score(5)
-            self.screen_effect.vignette(ALERT_RED, 0.20)
+            boss = self.boss_manager.on_player_score(5)
+            if boss is not None:
+                # Lab Tour ends at three points; three missed returns defeat
+                # its boss, while Classic retains the original 5-HP Titan.
+                boss.hp_max = 3
+                boss.hp = 3
+                self.screen_effect.vignette(ALERT_RED, 0.20)
 
     def reset_match(self):
         self.left_score = 0
@@ -273,8 +278,8 @@ def _handle_ball_vs_boss(state, ball_obj):
             if seg.hp > 0 and ball_obj.rect.colliderect(seg.rect):
                 ball_obj.speed_x = abs(ball_obj.speed_x) + SPEED_INCREMENT
                 ball_obj.rect.left = seg.rect.right + 1
-                boss.take_damage_at(i)
-                state.spawn_impact(ball_obj.rect.centerx, ball_obj.rect.centery, ALERT_RED, 2.0)
+                # A successful defense must never cost the boss health.
+                state.spawn_impact(ball_obj.rect.centerx, ball_obj.rect.centery, CYBER_BLUE, 1.4)
                 state.audio.play('paddle_hit')
                 hit = True
                 break
@@ -282,11 +287,62 @@ def _handle_ball_vs_boss(state, ball_obj):
         if ball_obj.rect.colliderect(boss.rect):
             ball_obj.speed_x = abs(ball_obj.speed_x) + SPEED_INCREMENT
             ball_obj.rect.left = boss.rect.right + 1
-            boss.take_damage()
-            state.spawn_impact(ball_obj.rect.centerx, ball_obj.rect.centery, ALERT_RED, 2.0)
+            # Returning the ball is a successful defense, not damage.
+            state.spawn_impact(ball_obj.rect.centerx, ball_obj.rect.centery, CYBER_BLUE, 1.4)
             state.audio.play('paddle_hit')
             hit = True
     ball_obj.clamp_speed()
+    return hit
+
+
+def _resolve_boss_defeat(state):
+    """Pay out a boss defeat once; Lab Tour and Classic have different goals."""
+    if not state.boss_manager.active:
+        return False
+    if not state.boss_manager.current_boss.is_defeated():
+        return False
+    reward = state.boss_manager.on_boss_defeated()
+    if reward is None:
+        return False
+
+    state.stats.record_boss_kill(reward["boss_type"])
+    state.match_stats.record_boss_kill()
+    state.screen_effect.slowmo(0.4, BOSS_DEFEAT_SLOWMO_MS)
+    state.screen_effect.clear_vignette()
+    state.boss_projectiles.clear()
+    state.spawn_impact(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, POWERUP_GOLD, 3.0)
+
+    if state.campaign_level == 5:
+        # The Lab Tour boss has 3 HP, exactly one for each required goal.
+        # Laser hits also count as actual damage and can finish the boss.
+        _finish_match(state, winner="PLAYER")
+    else:
+        state.right_score += reward["score_bonus"]
+        _apply_powerup(state, reward["powerup_type"])
+        _check_match_end(state)
+    return True
+
+
+def _laser_hits_boss(state, laser):
+    """Only a player-fired laser damages the active boss on contact."""
+    if laser.direction != "left" or not state.boss_manager.active:
+        return False
+    boss = state.boss_manager.current_boss
+    if isinstance(boss, Split):
+        hit = False
+        for index, segment in enumerate(boss.segments):
+            if segment.hp > 0 and laser.rect.colliderect(segment.rect):
+                boss.take_damage_at(index)
+                hit = True
+                break
+    else:
+        hit = laser.rect.colliderect(boss.rect)
+        if hit:
+            boss.take_damage()
+    if hit:
+        state.spawn_impact(laser.rect.centerx, laser.rect.centery, POWERUP_GOLD, 2.0)
+        state.audio.play("paddle_hit")
+        _resolve_boss_defeat(state)
     return hit
 
 
@@ -318,7 +374,10 @@ def _handle_scoring(state):
     """Returns True if a score happened this frame."""
     if state.ball.rect.left <= 0:
         # Player (right) scored
-        pts = int(1 * state.score_multiplier)
+        # Boss Gauntlet counts each clean goal as exactly one HP of damage.
+        # Combo multipliers must not end the fight before the boss is beaten.
+        pts = (1 if state.campaign_level == 5 and state.boss_manager.active
+               else int(1 * state.score_multiplier))
         state.right_score += pts
         state.score_flash['right'] = 30
         state.spawn_impact(state.ball.rect.centerx, state.ball.rect.centery, NEON_GREEN, 3.0)
@@ -328,8 +387,16 @@ def _handle_scoring(state):
         state.combo_counter = 0
         state.score_multiplier = 1.0
         state.audio.play('score')
-        _check_boss_trigger(state)
-        _check_match_end(state)
+        if state.boss_manager.active:
+            # A miss is a genuine breach of the boss's defense.
+            state.boss_manager.current_boss.take_damage()
+            state.spawn_impact(state.boss_manager.current_boss.rect.centerx,
+                               state.boss_manager.current_boss.rect.centery,
+                               POWERUP_GOLD, 2.0)
+            _resolve_boss_defeat(state)
+        if state.state == "playing":
+            _check_boss_trigger(state)
+            _check_match_end(state)
         if state.state != "gameover":
             state.reset_round()
         return True
@@ -345,7 +412,9 @@ def _handle_scoring(state):
         state.combo_counter = 0
         state.score_multiplier = 1.0
         state.audio.play('score')
-        if state.boss_manager.active:
+        if state.boss_manager.active and state.campaign_level != 5:
+            # In the classic arcade, a boss retreats when it scores.
+            # In campaign level 5 it stays for the whole 3-point fight.
             state.boss_manager.on_player_lost_point()
             state.boss_projectiles.clear()
             state.screen_effect.clear_vignette()
@@ -372,6 +441,12 @@ def _check_boss_trigger(state):
 def _check_match_end(state):
     point_limit = (challenge(state.campaign_level).points
                    if state.campaign_level else MATCH_POINT_LIMIT)
+    if state.campaign_level == 5:
+        # Beating a boss means depleting its HP, not simply reaching a
+        # combo-boosted score while it still has health remaining.
+        if state.left_score >= point_limit:
+            _finish_match(state, winner="AI")
+        return
     if state.right_score >= point_limit:
         _finish_match(state, winner="PLAYER")
     elif state.left_score >= point_limit:
@@ -710,25 +785,17 @@ class Game:
         if s.combo_counter > prev_combo:
             s.match_stats.record_hit(s.combo_counter)
 
-        # Boss defeat check
-        if s.boss_manager.active and s.boss_manager.current_boss.is_defeated():
-            reward = s.boss_manager.on_boss_defeated()
-            if reward:
-                s.right_score += reward['score_bonus']
-                s.stats.record_boss_kill(reward['boss_type'])
-                s.match_stats.record_boss_kill()
-                _apply_powerup(s, reward['powerup_type'])
-                s.screen_effect.slowmo(0.4, BOSS_DEFEAT_SLOWMO_MS)
-                s.screen_effect.clear_vignette()
-                s.boss_projectiles.clear()
-                s.spawn_impact(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, POWERUP_GOLD, 3.0)
-                _check_match_end(s)
-                # Bonus may have crossed the next 5-point threshold — re-check trigger
-                if s.state == "playing":
-                    _check_boss_trigger(s)
+        # A successful boss defense causes no HP loss. Only a breached
+        # goal or a player laser can defeat the boss.
+        _resolve_boss_defeat(s)
 
         # Laser collisions
         for laser in s.lasers[:]:
+            if _laser_hits_boss(s, laser):
+                s.lasers.remove(laser)
+                if s.state != "playing":
+                    break
+                continue
             if laser.rect.colliderect(s.ball.rect):
                 s.ball.speed_x = -abs(s.ball.speed_x) if laser.direction == 'right' else abs(s.ball.speed_x)
                 s.ball.speed_y += random.uniform(-3, 3)
@@ -746,6 +813,9 @@ class Game:
                     s.spawn_impact(mb.rect.centerx, mb.rect.centery, BRIGHT_WHITE, 1.5)
                     self.audio.play('paddle_hit')
                     break
+
+        if s.state != "playing":
+            return
 
         # Powerup pickups
         for p in s.powerups[:]:
@@ -786,6 +856,13 @@ class Game:
                 self.screen.blit(timer, (SCREEN_WIDTH - timer.get_width() - 25, 34))
             if s.boss_manager.active:
                 draw_boss_hp_bar(self.screen, s.boss_manager.current_boss, self.fonts['ui'])
+                # Explain why a successful return no longer reduces HP.
+                lesson = pygame.font.Font(None, 20).render(
+                    "BOSS BLOCKS: NO DAMAGE   |   GOAL / LASER: -1 HP",
+                    True, (255, 211, 141),
+                )
+                self.screen.blit(lesson, lesson.get_rect(
+                    center=(SCREEN_WIDTH // 2, 76)))
             s.screen_effect.render_overlays(self.screen)
             if s.ai_debug and s.state in ("playing", "paused"):
                 arena.overlay_ai_decision(self.screen, s)
