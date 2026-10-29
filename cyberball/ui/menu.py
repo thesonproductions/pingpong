@@ -1,6 +1,7 @@
 """Menu, pause, and HUD rendering."""
 import math
 import random
+from pathlib import Path
 import pygame
 
 from ..config import (
@@ -21,6 +22,39 @@ class MenuRenderer:
         self.small_font = fonts['small']
         self.particles = []
         self.demo = MenuDemo()
+        self._hus_logo = self._load_hus_logo()
+
+    @staticmethod
+    def _load_hus_logo():
+        """Load and scale the official supplied wordmark once, retaining alpha."""
+        path = Path(__file__).resolve().parent.parent / 'assets' / 'hus_logo.png'
+        try:
+            image = pygame.image.load(str(path)).convert_alpha()
+            max_width, max_height = 188, 73
+            factor = min(max_width / image.get_width(), max_height / image.get_height())
+            size = (max(1, round(image.get_width() * factor)),
+                    max(1, round(image.get_height() * factor)))
+            return pygame.transform.smoothscale(image, size)
+        except (OSError, pygame.error, ValueError, ZeroDivisionError):
+            return None
+
+    def _draw_hus_brand(self, surface):
+        if self._hus_logo is None:
+            return
+        # Subtle light-glass treatment keeps the blue wordmark readable
+        # on the dark neon background, without covering title or controls.
+        rect = pygame.Rect(18, 7, 211, 92)
+        shadow = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow, (3, 11, 26, 115), shadow.get_rect(),
+                         border_radius=15)
+        surface.blit(shadow, (rect.x + 3, rect.y + 4))
+        backing = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(backing, (244, 249, 255, 232), backing.get_rect(),
+                         border_radius=15)
+        pygame.draw.rect(backing, (172, 217, 244, 255), backing.get_rect(),
+                         width=2, border_radius=15)
+        surface.blit(backing, rect.topleft)
+        surface.blit(self._hus_logo, self._hus_logo.get_rect(center=rect.center))
 
     def _spawn_bg_particle(self):
         if len(self.particles) < 20:
@@ -46,13 +80,16 @@ class MenuRenderer:
             s.fill((*DARK_CYAN, max(0, alpha)))
             surface.blit(s, (i, 0))
 
+        # Keep the co-brand mark in the quiet upper-left corner.
+        self._draw_hus_brand(surface)
+
         # Lab branding and classic Cyberball game title.
         eyebrow = self.small_font.render("HUS  |  AI LAB TOUR 2026", True, NEON_GREEN)
         surface.blit(eyebrow, eyebrow.get_rect(center=(SCREEN_WIDTH // 2, 67)))
         # Title
         title = self.title_font.render("CYBERBALL 2084", True, CYBER_BLUE)
         tx = SCREEN_WIDTH // 2 - title.get_width() // 2
-        ty = 100 + int(8 * math.sin(t))
+        ty = 112 + int(8 * math.sin(t))
         for off in [(4, 4), (-4, -4), (4, -4), (-4, 4)]:
             glow = self.title_font.render("CYBERBALL 2084", True, BRIGHT_WHITE)
             glow.set_alpha(60)

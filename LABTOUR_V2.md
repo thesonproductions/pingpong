@@ -105,3 +105,15 @@ python -m unittest discover -s tests -v
 CC0 assets and provenance: `cyberball/assets/ASSET_LICENSES.md`.
 Original Cyberball main branch remains available via `git switch main`
 after saving any local work.
+
+## HUS logo on menu
+
+The user-supplied HUS logo is copied (without modifying the original) to
+`cyberball/assets/hus_logo.png`. The main menu loads it once, preserves its
+transparent PNG aspect ratio, and presents it in a small upper-left off-white
+glass panel so the blue HUS wordmark remains readable against dark arenas.
+It does not cover the centered Cyberball title or gameplay controls. The
+original root-level `logo.4788abb.png` stays untouched.
+
+Preview: `docs/screenshots/17_hus_branded_main_menu.png`.
+The renderer safely skips the logo if the file is absent.
