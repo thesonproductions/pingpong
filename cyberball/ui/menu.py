@@ -84,7 +84,7 @@ class MenuRenderer:
         self._draw_hus_brand(surface)
 
         # Lab branding and classic Cyberball game title.
-        eyebrow = self.small_font.render("HUS  |  AI LAB TOUR 2026", True, NEON_GREEN)
+        eyebrow = self.small_font.render("LAB TOUR 2026", True, NEON_GREEN)
         surface.blit(eyebrow, eyebrow.get_rect(center=(SCREEN_WIDTH // 2, 67)))
         # Title
         title = self.title_font.render("CYBERBALL 2084", True, CYBER_BLUE)
@@ -108,7 +108,7 @@ class MenuRenderer:
         # Main menu
         items = [
             ("SPACE", "ARCADE: CLASSIC MATCH"),
-            ("L", "LAB TOUR: FIVE LEVELS"),
+            ("L", "CHALLENGERS: FIVE LEVELS"),
             ("1 / 2 / 3 / 4", f"DIFFICULTY: {state.difficulty.upper()}"),
             ("M", f"MODE: {state.mode.upper()}  (1P vs AI / 2P local)"),
             ("V / B", f"VOLUME: {int(state.audio.volume * 100)}%"),

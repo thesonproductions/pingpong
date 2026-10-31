@@ -575,7 +575,7 @@ class Game:
         except pygame.error:
             # Some builds don't support HIDDEN; fall back
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption('HUS LAB TOUR 2026 | CYBERBALL 2084 - HUMAN VS AI')
+        pygame.display.set_caption('LAB TOUR 2026 - CYBERBALL')
         self.clock = pygame.time.Clock()
         self.fonts = _fonts()
 
